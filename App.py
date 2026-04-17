@@ -1,23 +1,35 @@
+import streamlit as st
 import pdfplumber
-import csv
+import pandas as pd
 
-pdf_path = "ENGG_CUTOFF_2023_GENkannada.pdf"
-csv_path = "kcet_cutoff_output.csv"
+st.title("KCET PDF to CSV Converter")
 
-rows = []
+uploaded_file = st.file_uploader("Upload KCET Cutoff PDF", type=["pdf"])
 
-with pdfplumber.open(pdf_path) as pdf:
-    for page in pdf.pages:
-        text = page.extract_text()
+if uploaded_file is not None:
 
-        if text:
-            lines = text.split("\n")
-            for line in lines:
-                row = line.split()
-                rows.append(row)
+    all_tables = []
 
-with open(csv_path, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
-    writer.writerows(rows)
+    with pdfplumber.open(uploaded_file) as pdf:
+        for page in pdf.pages:
+            tables = page.extract_tables()
+            for table in tables:
+                df = pd.DataFrame(table)
+                all_tables.append(df)
 
-print("CSV file created successfully!")
+    if all_tables:
+        final_df = pd.concat(all_tables)
+
+        st.subheader("Extracted Table Preview")
+        st.dataframe(final_df)
+
+        csv = final_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="Download CSV",
+            data=csv,
+            file_name="kcet_cutoff.csv",
+            mime="text/csv"
+        )
+    else:
+        st.warning("No tables detected in the PDF.")
